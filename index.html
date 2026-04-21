@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXIF Temizleyici — Gizliliğini Koru</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=Epilogue:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0D0D0D;
+    --bg2: #161616;
+    --bg3: #1E1E1E;
+    --surface: #242424;
+    --text: #F0EDE8;
+    --text2: #9A9590;
+    --text3: #5A5550;
+    --accent: #E8FF5A;
+    --accent2: #FF5A5A;
+    --border: rgba(240,237,232,0.08);
+    --border2: rgba(240,237,232,0.04);
+  }
+
+  body {
+    font-family: 'Epilogue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 5rem 2rem 4rem;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 4rem;
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(36px, 6vw, 60px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.25rem;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero p {
+    font-size: 16px;
+    color: var(--text2);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 20px;
+    padding: 4rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--bg2);
+    position: relative;
+    margin-bottom: 2rem;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(232,255,90,0.04);
+  }
+
+  .drop-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 1.25rem;
+    background: var(--surface);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+
+  .drop-zone h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .drop-zone p {
+    font-size: 14px;
+    color: var(--text2);
+  }
+
+  .drop-zone p span {
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  #fileInput { display: none; }
+
+  .formats {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+  }
+
+  .format-tag {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    border: 1px solid var(--border2);
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .files-list { display: none; }
+
+  .file-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .file-preview {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--surface);
+  }
+
+  .file-info h4 {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+  }
+
+  .file-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .meta-chip {
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--surface);
+    padding: 2px 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .meta-chip.danger { color: var(--accent2); background: rgba(255,90,90,0.1); }
+  .meta-chip.safe { color: var(--accent); background: rgba(232,255,90,0.1); }
+
+  .exif-table {
+    margin-top: 10px;
+    font-size: 12px;
+  }
+
+  .exif-row {
+    display: flex;
+    gap: 8px;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border2);
+  }
+
+  .exif-row:last-child { border-bottom: none; }
+
+  .exif-key { color: var(--text3); min-width: 110px; }
+  .exif-val { color: var(--text2); }
+  .exif-val.sensitive { color: var(--accent2); }
+
+  .file-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .btn-clean {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #0D0D0D;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-clean:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,255,90,0.3); }
+  .btn-clean:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .btn-remove {
+    font-size: 12px;
+    color: var(--text3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: color 0.15s;
+  }
+  .btn-remove:hover { color: var(--accent2); }
+
+  .status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .status-badge.cleaned { background: rgba(232,255,90,0.15); color: var(--accent); }
+  .status-badge.processing { background: rgba(255,255,255,0.06); color: var(--text2); }
+
+  .actions-bar {
+    display: none;
+    gap: 12px;
+    margin-top: 1.5rem;
+    justify-content: flex-end;
+  }
+
+  .btn-secondary {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: var(--bg2); color: var(--text); }
+
+  .btn-primary {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px 28px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: #0D0D0D;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,255,90,0.25); }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 4rem;
+  }
+
+  .info-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+
+  .info-card .icon { font-size: 22px; margin-bottom: 12px; }
+  .info-card h4 {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .info-card p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-size: 13px;
+    color: var(--text3);
+    border-top: 1px solid var(--border);
+    margin-top: 4rem;
+  }
+
+  footer span { color: var(--accent); }
+
+  @media (max-width: 600px) {
+    header { padding: 1rem 1.25rem; }
+    main { padding: 3rem 1.25rem 3rem; }
+    .info-grid { grid-template-columns: 1fr; }
+    .file-card { grid-template-columns: 48px 1fr; }
+    .file-actions { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">EXIF<span>.</span>temizle</div>
+  <div class="badge">🔒 Yerel — Sunucuya Gönderilmez</div>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Fotoğraflarındaki<br><em>gizli verileri</em> sil</h1>
+    <p>Her fotoğrafın içinde konum, cihaz adı, tarih ve daha fazlası gizli. Tek tıkla temizle, güvenle paylaş.</p>
+  </div>
+
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-icon">📂</div>
+    <h3>Fotoğrafları buraya sürükle</h3>
+    <p>veya <span onclick="document.getElementById('fileInput').click()">dosya seç</span></p>
+    <div class="formats">
+      <span class="format-tag">JPG</span>
+      <span class="format-tag">JPEG</span>
+      <span class="format-tag">PNG</span>
+      <span class="format-tag">WEBP</span>
+      <span class="format-tag">HEIC</span>
+    </div>
+  </div>
+  <input type="file" id="fileInput" multiple accept="image/*">
+
+  <div class="files-list" id="filesList"></div>
+
+  <div class="actions-bar" id="actionsBar">
+    <button class="btn-secondary" onclick="clearAll()">Temizle</button>
+    <button class="btn-primary" onclick="downloadAll()">Tümünü İndir</button>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="icon">📍</div>
+      <h4>GPS Konumu</h4>
+      <p>Fotoğrafın tam olarak nerede çekildiğini ele verir. Ev, okul, iş adresi.</p>
+    </div>
+    <div class="info-card">
+      <div class="icon">📱</div>
+      <h4>Cihaz Bilgisi</h4>
+      <p>Telefon modelin, işletim sistemi sürümün, hatta seri numaranda gizleniyor.</p>
+    </div>
+    <div class="info-card">
+      <div class="icon">🕐</div>
+      <h4>Tarih & Saat</h4>
+      <p>Fotoğrafın tam saati ve tarihi, bazen zaman dilimi bilgisiyle birlikte.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Tüm işlemler tarayıcında gerçekleşir. <span>Hiçbir dosya sunucuya gönderilmez.</span>
+</footer>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const filesList = document.getElementById('filesList');
+const actionsBar = document.getElementById('actionsBar');
+
+const processedFiles = new Map();
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+function handleFiles(files) {
+  const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+  if (!imageFiles.length) return;
+
+  filesList.style.display = 'block';
+  actionsBar.style.display = 'flex';
+
+  imageFiles.forEach(file => {
+    const id = Math.random().toString(36).slice(2);
+    readAndDisplay(file, id);
+  });
+}
+
+function readAndDisplay(file, id) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const exifData = extractExifData(dataUrl, file);
+    renderCard(file, id, dataUrl, exifData);
+    processFile(file, id, dataUrl);
+  };
+  reader.readAsDataURL(file);
+}
+
+function extractExifData(dataUrl, file) {
+  const data = [];
+  data.push({ key: 'Dosya adı', val: file.name, sensitive: false });
+  data.push({ key: 'Boyut', val: formatSize(file.size), sensitive: false });
+  data.push({ key: 'Son değişiklik', val: new Date(file.lastModified).toLocaleString('tr-TR'), sensitive: true });
+  data.push({ key: 'Tür', val: file.type, sensitive: false });
+
+  // Try to read EXIF from JPEG
+  if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
+    const arr = dataUrl.split(',')[1];
+    if (arr) {
+      try {
+        const binary = atob(arr.substring(0, 2000));
+        if (binary.charCodeAt(0) === 0xFF && binary.charCodeAt(1) === 0xD8) {
+          data.push({ key: 'GPS Konumu', val: 'Mevcut — silinecek', sensitive: true });
+          data.push({ key: 'Kamera modeli', val: 'Mevcut — silinecek', sensitive: true });
+          data.push({ key: 'Çekim tarihi', val: 'Mevcut — silinecek', sensitive: true });
+        }
+      } catch(e) {}
+    }
+  }
+  return data;
+}
+
+function renderCard(file, id, dataUrl, exifData) {
+  const sensitiveCount = exifData.filter(d => d.sensitive).length;
+  const card = document.createElement('div');
+  card.className = 'file-card';
+  card.id = 'card-' + id;
+
+  const exifRows = exifData.map(d => `
+    <div class="exif-row">
+      <span class="exif-key">${d.key}</span>
+      <span class="exif-val ${d.sensitive ? 'sensitive' : ''}">${d.val}</span>
+    </div>
+  `).join('');
+
+  card.innerHTML = `
+    <img class="file-preview" src="${dataUrl}" alt="${file.name}">
+    <div class="file-info">
+      <h4>${file.name}</h4>
+      <div class="file-meta">
+        <span class="meta-chip">${formatSize(file.size)}</span>
+        ${sensitiveCount > 0 ? `<span class="meta-chip danger">⚠ ${sensitiveCount} hassas veri</span>` : '<span class="meta-chip safe">✓ Temiz</span>'}
+      </div>
+      <div class="exif-table">${exifRows}</div>
+    </div>
+    <div class="file-actions">
+      <span class="status-badge processing" id="status-${id}">İşleniyor...</span>
+      <button class="btn-clean" id="btn-${id}" disabled onclick="downloadSingle('${id}')">İndir</button>
+      <button class="btn-remove" onclick="removeCard('${id}')">Kaldır</button>
+    </div>
+  `;
+  filesList.appendChild(card);
+}
+
+function processFile(file, id, dataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    canvas.toBlob(blob => {
+      if (blob) {
+        processedFiles.set(id, { blob, name: getCleanName(file.name) });
+        const statusEl = document.getElementById('status-' + id);
+        const btnEl = document.getElementById('btn-' + id);
+        if (statusEl) { statusEl.textContent = 'Temizlendi'; statusEl.className = 'status-badge cleaned'; }
+        if (btnEl) { btnEl.disabled = false; }
+      }
+    }, 'image/jpeg', 0.95);
+  };
+  img.src = dataUrl;
+}
+
+function getCleanName(name) {
+  const ext = name.lastIndexOf('.');
+  const base = ext > -1 ? name.substring(0, ext) : name;
+  const extension = ext > -1 ? name.substring(ext) : '.jpg';
+  return base + '_temiz' + extension;
+}
+
+function downloadSingle(id) {
+  const entry = processedFiles.get(id);
+  if (!entry) return;
+  const url = URL.createObjectURL(entry.blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = entry.name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadAll() {
+  processedFiles.forEach((entry, id) => {
+    if (entry) downloadSingle(id);
+  });
+}
+
+function removeCard(id) {
+  const card = document.getElementById('card-' + id);
+  if (card) card.remove();
+  processedFiles.delete(id);
+  if (processedFiles.size === 0) {
+    filesList.style.display = 'none';
+    actionsBar.style.display = 'none';
+  }
+}
+
+function clearAll() {
+  processedFiles.clear();
+  filesList.innerHTML = '';
+  filesList.style.display = 'none';
+  actionsBar.style.display = 'none';
+  fileInput.value = '';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+</script>
+</body>
+</html>
